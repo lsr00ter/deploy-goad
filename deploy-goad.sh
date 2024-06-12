@@ -32,10 +32,16 @@ fi
 apt-get install -y git virtualbox python3-pip
 
 # Enable IP forwarding on Ubuntu
+yes | apt-get install iptables-persistent
+DEFAULT_ETH=$(ip route get 8.8.8.8 | sed -n 's/.*dev \([^\ ]*\).*/\1/p')
 if [ "`cat /proc/sys/net/ipv4/ip_forward`" != "1" ]; then
   # Implement in sysctl
   echo net.ipv4.ip_forward = 1 >> /etc/sysctl.conf
   sysctl -p
+  iptables -A FORWARD -i $DEFAULT_ETH -o vboxnet0 -j ACCEPT
+  iptables -A FORWARD -i vboxnet0 -o $DEFAULT_ETH -m state --state ESTABLISHED,RELATED -j ACCEPT
+  iptables -t nat -A POSTROUTING -o vboxnet0 -j MASQUERADE
+  iptables-save | tee /etc/iptables/rules.v4
 fi
 
 # Check if vagrant is installed
